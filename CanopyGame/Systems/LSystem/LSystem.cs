@@ -1,12 +1,29 @@
-// Systems/LSystem/LSystem.cs
+// Systems/LSystem/LSystem.cs - Add plant part type to the system
 using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
 
-namespace Canopy.Systems.LSystem
+namespace CanopyGame.Systems.LSystem
 {
+    public enum PlantPartType
+    {
+        Stem,
+        Branch,
+        Root,
+        Leaf
+    }
+
+    public struct PlantSegment
+    {
+        public Vector2 Start;
+        public Vector2 End;
+        public float Width;
+        public PlantPartType Type;
+    }
+
     public class LSystem
     {
+        // Existing code...
         public string Axiom { get; private set; }
         public Dictionary<char, string> Rules { get; private set; }
         public int Iterations { get; private set; }
@@ -53,49 +70,95 @@ namespace Canopy.Systems.LSystem
             public float Angle;
             public float Length;
             public float Width;
+            public PlantPartType Type;
         }
 
-        public List<Vector2[]> Branches { get; private set; }
+        public List<PlantSegment> Segments { get; private set; }
         
         private float _angle;
         private float _initialLength;
         private float _lengthReduction;
+        private float _initialWidth;
         private Stack<TurtleState> _stateStack;
+        private PlantPartType _currentType;
 
-        public LSystemInterpreter(float angle, float initialLength, float lengthReduction)
+        public LSystemInterpreter(float angle, float initialLength, float lengthReduction, float initialWidth)
         {
             _angle = angle;
             _initialLength = initialLength;
             _lengthReduction = lengthReduction;
-            Branches = new List<Vector2[]>();
+            _initialWidth = initialWidth;
+            Segments = new List<PlantSegment>();
             _stateStack = new Stack<TurtleState>();
+            _currentType = PlantPartType.Stem;
         }
 
         public void Interpret(string instructions)
         {
-            Branches.Clear();
+            Segments.Clear();
             
             TurtleState turtle = new TurtleState
             {
                 Position = Vector2.Zero,
                 Angle = -MathHelper.PiOver2, // Start pointing up
                 Length = _initialLength,
-                Width = _initialLength * 0.1f
+                Width = _initialWidth,
+                Type = PlantPartType.Stem
             };
 
             _stateStack.Clear();
+            _currentType = PlantPartType.Stem;
 
             foreach (char c in instructions)
             {
                 switch (c)
                 {
-                    case 'F': // Draw forward
+                    case 'F': // Draw forward (stem/branch)
                         Vector2 oldPos = turtle.Position;
                         turtle.Position += new Vector2(
                             (float)Math.Cos(turtle.Angle) * turtle.Length,
                             (float)Math.Sin(turtle.Angle) * turtle.Length
                         );
-                        Branches.Add(new Vector2[] { oldPos, turtle.Position });
+                        
+                        Segments.Add(new PlantSegment 
+                        { 
+                            Start = oldPos, 
+                            End = turtle.Position,
+                            Width = turtle.Width,
+                            Type = turtle.Type
+                        });
+                        break;
+                    
+                    case 'R': // Draw root
+                        oldPos = turtle.Position;
+                        turtle.Position += new Vector2(
+                            (float)Math.Cos(turtle.Angle) * turtle.Length,
+                            (float)Math.Sin(turtle.Angle) * turtle.Length
+                        );
+                        
+                        Segments.Add(new PlantSegment 
+                        { 
+                            Start = oldPos, 
+                            End = turtle.Position,
+                            Width = turtle.Width,
+                            Type = PlantPartType.Root
+                        });
+                        break;
+                    
+                    case 'L': // Draw leaf
+                        oldPos = turtle.Position;
+                        Vector2 leafEnd = oldPos + new Vector2(
+                            (float)Math.Cos(turtle.Angle) * turtle.Length * 0.5f,
+                            (float)Math.Sin(turtle.Angle) * turtle.Length * 0.5f
+                        );
+                        
+                        Segments.Add(new PlantSegment
+                        {
+                            Start = oldPos,
+                            End = leafEnd,
+                            Width = turtle.Width * 2f, // Wider for leaves
+                            Type = PlantPartType.Leaf
+                        });
                         break;
                     
                     case '+': // Turn right
@@ -108,6 +171,8 @@ namespace Canopy.Systems.LSystem
                     
                     case '[': // Save state (start branch)
                         _stateStack.Push(turtle);
+                        turtle.Type = PlantPartType.Branch; // New segment is a branch
+                        turtle.Width *= 0.8f; // Branches are thinner
                         break;
                     
                     case ']': // Restore state (end branch)
@@ -120,6 +185,19 @@ namespace Canopy.Systems.LSystem
                         
                     case '<': // Decrease length
                         turtle.Length *= _lengthReduction;
+                        turtle.Width *= _lengthReduction;
+                        break;
+                        
+                    case 'S': // Switch to stem type
+                        turtle.Type = PlantPartType.Stem;
+                        break;
+                        
+                    case 'B': // Switch to branch type
+                        turtle.Type = PlantPartType.Branch;
+                        break;
+                        
+                    case 'T': // Switch to root type
+                        turtle.Type = PlantPartType.Root;
                         break;
                 }
             }

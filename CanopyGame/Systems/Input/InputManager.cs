@@ -2,7 +2,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 
-namespace Canopy.Systems.Input
+namespace CanopyGame.Systems.Input
 {
     public class InputManager
     {

@@ -1,7 +1,7 @@
 // Systems/Rendering/Camera.cs
 using Microsoft.Xna.Framework;
 
-namespace Canopy.Systems.Rendering
+namespace CanopyGame.Systems.Rendering
 {
     public class Camera
     {
