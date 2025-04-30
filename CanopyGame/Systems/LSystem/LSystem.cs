@@ -1,4 +1,4 @@
-// Systems/LSystem/LSystem.cs - Add plant part type to the system
+// Systems/LSystem/LSystem.cs - Adding age tracking and refined plant part types
 using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
@@ -19,11 +19,12 @@ namespace CanopyGame.Systems.LSystem
         public Vector2 End;
         public float Width;
         public PlantPartType Type;
+        public int Age;           // Age of segment in growth cycles
+        public int Generation;    // Generation in the growth sequence
     }
 
     public class LSystem
     {
-        // Existing code...
         public string Axiom { get; private set; }
         public Dictionary<char, string> Rules { get; private set; }
         public int Iterations { get; private set; }
@@ -71,6 +72,7 @@ namespace CanopyGame.Systems.LSystem
             public float Length;
             public float Width;
             public PlantPartType Type;
+            public int Generation;
         }
 
         public List<PlantSegment> Segments { get; private set; }
@@ -81,6 +83,7 @@ namespace CanopyGame.Systems.LSystem
         private float _initialWidth;
         private Stack<TurtleState> _stateStack;
         private PlantPartType _currentType;
+        private int _currentGeneration;
 
         public LSystemInterpreter(float angle, float initialLength, float lengthReduction, float initialWidth)
         {
@@ -91,6 +94,7 @@ namespace CanopyGame.Systems.LSystem
             Segments = new List<PlantSegment>();
             _stateStack = new Stack<TurtleState>();
             _currentType = PlantPartType.Stem;
+            _currentGeneration = 0;
         }
 
         public void Interpret(string instructions)
@@ -103,11 +107,13 @@ namespace CanopyGame.Systems.LSystem
                 Angle = -MathHelper.PiOver2, // Start pointing up
                 Length = _initialLength,
                 Width = _initialWidth,
-                Type = PlantPartType.Stem
+                Type = PlantPartType.Stem,
+                Generation = 0
             };
 
             _stateStack.Clear();
             _currentType = PlantPartType.Stem;
+            _currentGeneration = 0;
 
             foreach (char c in instructions)
             {
@@ -125,42 +131,12 @@ namespace CanopyGame.Systems.LSystem
                             Start = oldPos, 
                             End = turtle.Position,
                             Width = turtle.Width,
-                            Type = turtle.Type
+                            Type = turtle.Type,
+                            Age = 0,
+                            Generation = turtle.Generation
                         });
                         break;
-                    
-                    case 'R': // Draw root
-                        oldPos = turtle.Position;
-                        turtle.Position += new Vector2(
-                            (float)Math.Cos(turtle.Angle) * turtle.Length,
-                            (float)Math.Sin(turtle.Angle) * turtle.Length
-                        );
                         
-                        Segments.Add(new PlantSegment 
-                        { 
-                            Start = oldPos, 
-                            End = turtle.Position,
-                            Width = turtle.Width,
-                            Type = PlantPartType.Root
-                        });
-                        break;
-                    
-                    case 'L': // Draw leaf
-                        oldPos = turtle.Position;
-                        Vector2 leafEnd = oldPos + new Vector2(
-                            (float)Math.Cos(turtle.Angle) * turtle.Length * 0.5f,
-                            (float)Math.Sin(turtle.Angle) * turtle.Length * 0.5f
-                        );
-                        
-                        Segments.Add(new PlantSegment
-                        {
-                            Start = oldPos,
-                            End = leafEnd,
-                            Width = turtle.Width * 2f, // Wider for leaves
-                            Type = PlantPartType.Leaf
-                        });
-                        break;
-                    
                     case '+': // Turn right
                         turtle.Angle += _angle;
                         break;
@@ -173,6 +149,7 @@ namespace CanopyGame.Systems.LSystem
                         _stateStack.Push(turtle);
                         turtle.Type = PlantPartType.Branch; // New segment is a branch
                         turtle.Width *= 0.8f; // Branches are thinner
+                        turtle.Generation++; // Increment generation counter for branching
                         break;
                     
                     case ']': // Restore state (end branch)
@@ -196,8 +173,7 @@ namespace CanopyGame.Systems.LSystem
                         turtle.Type = PlantPartType.Branch;
                         break;
                         
-                    case 'T': // Switch to root type
-                        turtle.Type = PlantPartType.Root;
+                    case 'X': // Variable - no action required
                         break;
                 }
             }
