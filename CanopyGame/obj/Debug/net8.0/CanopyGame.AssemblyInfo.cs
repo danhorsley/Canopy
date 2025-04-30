@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CanopyGame")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d91769686412992615bd71736ad078eb012451b6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5583304a455e7c3b643cfd002536c3934464a319")]
 [assembly: System.Reflection.AssemblyProductAttribute("CanopyGame")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CanopyGame")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

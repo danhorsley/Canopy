@@ -123,6 +123,7 @@ namespace CanopyGame
         
         private void GrowLeaves()
         {
+            // Instead of incrementing, reset to 0 before each growth cycle
             _leafGrowthStage++;
             
             if (_leafGrowthStage >= 5)
@@ -175,7 +176,6 @@ namespace CanopyGame
                 return;
             }
             
-            // Add random root extensions
             Random random = new Random();
             List<PlantSegment> newSegments = new List<PlantSegment>();
             
@@ -183,17 +183,13 @@ namespace CanopyGame
             {
                 newSegments.Add(segment);
                 
-                // Only extend roots with some randomness
                 if (segment.Type == PlantPartType.Root && random.NextDouble() < 0.3)
                 {
-                    // Create a new root segment
-                    float rootAngle = segment.End.X > segment.Start.X ? 
-                        (float)(Math.PI * 0.25) : (float)(Math.PI * 0.75);
+                    // Ensure downward growth - between 225° and 315° (π*1.25 and π*1.75)
+                    float rootAngle = (float)(Math.PI * 1.5 + (random.NextDouble() - 0.5) * Math.PI * 0.5);
                     
-                    // Add some randomness to the angle
-                    rootAngle += (float)(random.NextDouble() * Math.PI * 0.5 - Math.PI * 0.25);
-                    
-                    float rootLength = segment.Width * 5;
+                    // Wider spread, smaller magnitude
+                    float rootLength = segment.Width * 3;
                     
                     Vector2 rootDir = new Vector2(
                         (float)Math.Cos(rootAngle),
@@ -204,7 +200,7 @@ namespace CanopyGame
                     {
                         Start = segment.End,
                         End = segment.End + (rootDir * rootLength),
-                        Width = segment.Width * 0.8f,
+                        Width = segment.Width * 0.7f,
                         Type = PlantPartType.Root
                     });
                 }
@@ -213,12 +209,60 @@ namespace CanopyGame
             _currentSegments = newSegments;
             _plantRenderer.UpdatePlant(_currentSegments);
         }
+        private void GrowBranches()
+        {
+            _branchGrowthStage++;
+            
+            if (_branchGrowthStage >= 5)
+            {
+                _isGrowingBranches = false;
+                return;
+            }
+            
+            Random random = new Random();
+            List<PlantSegment> newSegments = new List<PlantSegment>();
+            
+            foreach (var segment in _currentSegments)
+            {
+                newSegments.Add(segment);
+                
+                if ((segment.Type == PlantPartType.Branch || segment.Type == PlantPartType.Stem) 
+                    && random.NextDouble() < 0.25)
+                {
+                    // Branch upward and outward - between 0° and 180° (0 and π)
+                    float branchAngle = segment.End.Y > segment.Start.Y ? 
+                        (float)(-Math.PI * 0.25 + random.NextDouble() * Math.PI * 0.5) : 
+                        (float)(-Math.PI * 0.75 + random.NextDouble() * Math.PI * 0.5);
+                        
+                    float branchLength = segment.Width * 4;
+                    
+                    Vector2 branchDir = new Vector2(
+                        (float)Math.Cos(branchAngle),
+                        (float)Math.Sin(branchAngle)
+                    );
+                    
+                    newSegments.Add(new PlantSegment
+                    {
+                        Start = segment.End,
+                        End = segment.End + (branchDir * branchLength),
+                        Width = segment.Width * 0.9f,
+                        Type = PlantPartType.Branch
+                    });
+                }
+            }
+            
+            _currentSegments = newSegments;
+            _plantRenderer.UpdatePlant(_currentSegments);
+        }
+
 
         // Growth state tracking
         private bool _isGrowingLeaves = false;
         private bool _isGrowingRoots = false;
         private float _growthTimer = 0f;
         private float _growthInterval = 0.5f; // Time between growth steps
+        private bool _isGrowingBranches = false;
+        private int _branchGrowthStage = 0;
 
         protected override void Update(GameTime gameTime)
         {
@@ -265,32 +309,27 @@ namespace CanopyGame
             }
             
             // Grow roots with R key
-            if (keyboardState.IsKeyDown(Keys.R) && !_previousKeyboardState.IsKeyDown(Keys.R))
-            {
-                _isGrowingRoots = true;
-                _growthTimer = 0f;
-            }
-            
-            // Handle growth timers
-            if (_isGrowingLeaves || _isGrowingRoots)
-            {
-                _growthTimer += (float)gameTime.ElapsedGameTime.TotalSeconds;
-                
-                if (_growthTimer >= _growthInterval)
+            if (keyboardState.IsKeyDown(Keys.B) && !_previousKeyboardState.IsKeyDown(Keys.B))
                 {
+                    _isGrowingBranches = true;
                     _growthTimer = 0f;
+                    _branchGrowthStage = 0;
+                }
+
+                // Update growth timer section to include branches:
+                if (_isGrowingLeaves || _isGrowingRoots || _isGrowingBranches)
+                {
+                    _growthTimer += (float)gameTime.ElapsedGameTime.TotalSeconds;
                     
-                    if (_isGrowingLeaves)
+                    if (_growthTimer >= _growthInterval)
                     {
-                        GrowLeaves();
-                    }
-                    
-                    if (_isGrowingRoots)
-                    {
-                        GrowRoots();
+                        _growthTimer = 0f;
+                        
+                        if (_isGrowingLeaves) GrowLeaves();
+                        if (_isGrowingRoots) GrowRoots();
+                        if (_isGrowingBranches) GrowBranches();
                     }
                 }
-            }
             
             _previousKeyboardState = keyboardState;
 
@@ -325,7 +364,7 @@ namespace CanopyGame
                 _font = Content.Load<SpriteFont>("Arial");
             }
             
-            string helpText = "Controls: WASD-Move  QE-Zoom  Up/Down-Size  L-Grow Leaves  R-Grow Roots";
+            string helpText =  "Controls: WASD-Move  QE-Zoom  Up/Down-Size  L-Grow Leaves  R-Grow Roots  B-Grow Branches";
             Vector2 textPos = new Vector2(10, 10);
             
             // Draw text with shadow for better visibility
